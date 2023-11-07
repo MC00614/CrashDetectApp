@@ -13,8 +13,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import asyncio
-import logging
 import json
+import logging
 import signal
 
 from vehicle import Vehicle, vehicle  # type: ignore
@@ -36,29 +36,30 @@ SET_CRASH_RESPONSE_TOPIC = "crashdetect/crashed/response"
 
 
 class CrashDetectApp(VehicleApp):
-
     def __init__(self, vehicle_client: Vehicle):
         super().__init__()
         self.Vehicle = vehicle_client
 
     async def on_start(self):
-        await self.Vehicle.ADAS.ObstacleDetection.IsWarning.subscribe(self.on_distance_change)
+        await self.Vehicle.ADAS.ObstacleDetection.IsWarning.subscribe(
+            self.on_distance_change
+        )
         await self.Vehicle.Acceleration.Longitudinal.subscribe(self.on_accel_change)
 
     async def on_distance_change(self, data: DataPointReply):
         distance = data.get(self.Vehicle.ADAS.ObstacleDetection.IsWarning).value
         logger.info(distance)
-        if distance :
+        if distance:
             await self.set_crash_event(1)
-            
+
     async def on_accel_change(self, data: DataPointReply):
         accel = data.get(self.Vehicle.Acceleration.Longitudinal).value
         logger.info(accel)
-        if ((accel < -50) or (50 < accel)) :
+        if (accel < -50) or (50 < accel):
             logger.info(accel)
             await self.set_crash_event(1)
-            
-    async def set_crash_event(self, status) :
+
+    async def set_crash_event(self, status):
         await self.publish_event(
             SET_CRASH_EVENT_TOPIC,
             json.dumps(
@@ -69,17 +70,18 @@ class CrashDetectApp(VehicleApp):
                 }
             ),
         )
-        
+
     @subscribe_topic(SET_CRASH_RESPONSE_TOPIC)
     async def on_crash_event_response_received(self, data: str) -> None:
         await self.set_crash_event(0)
-        
-        
+
+
 async def main():
     """Main function"""
     logger.info("Starting CrashDetectApp...")
     vehicle_app = CrashDetectApp(vehicle)
     await vehicle_app.run()
+
 
 LOOP = asyncio.get_event_loop()
 LOOP.add_signal_handler(signal.SIGTERM, LOOP.stop)
